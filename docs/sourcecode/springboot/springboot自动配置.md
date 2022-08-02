@@ -70,8 +70,8 @@ public @interface EnableAutoConfiguration {
 ### getImports
 
 ```java
-// ConfigurationClassParser#DeferredImportSelectorGroupingHandler.java 
-// 返回组定义的导入
+// ConfigurationClassParser#DeferredImportSelectorGrouping.java 
+// 返回组定义的导入 
 public Iterable<Group.Entry> getImports() {
    for (DeferredImportSelectorHolder deferredImport : this.deferredImports) {
       this.group.process(deferredImport.getConfigurationClass().getMetadata(),
@@ -87,6 +87,7 @@ public Iterable<Group.Entry> getImports() {
 
 ```java
 // AutoConfigurationGroup#process
+// 处理被 @Import 注解的注解，
 @Override
 public void process(AnnotationMetadata annotationMetadata, DeferredImportSelector deferredImportSelector) {
    Assert.state(deferredImportSelector instanceof AutoConfigurationImportSelector,
@@ -106,7 +107,54 @@ public void process(AnnotationMetadata annotationMetadata, DeferredImportSelecto
 ```
 
 - `annotationMetadata` 参数，一般来说是被 `@SpringBootApplication` 注解的元数据。因为，`@SpringBootApplication` 组合了 `@EnableAutoConfiguration` 注解。
+
 - `deferredImportSelector` 参数，`@EnableAutoConfiguration` 注解的定义的 `@Import` 的类，即 AutoConfigurationImportSelector 对象。
+
+- 属性:
+
+  ```java
+  private static class AutoConfigurationGroup
+        implements DeferredImportSelector.Group, BeanClassLoaderAware, BeanFactoryAware, ResourceLoaderAware {
+  
+    // AnnotationMetadata 的映射 KEY：配置类的全类名
+     private final Map<String, AnnotationMetadata> entries = new LinkedHashMap<>();
+  
+    // AutoConfigurationEntry 的数组
+     private final List<AutoConfigurationEntry> autoConfigurationEntries = new ArrayList<>();
+  
+    // 自动配置的元数据 autoConfigurationMetadata 属性，用途就是制定配置类（Configuration）的生效条件（Condition）
+     private AutoConfigurationMetadata autoConfigurationMetadata;
+    
+     private ClassLoader beanClassLoader;
+     private BeanFactory beanFactory;
+     private ResourceLoader resourceLoader;
+  
+  }
+  ```
+
+- AutoConfigurationEntry：
+
+  ```java
+  // AutoConfigurationEntry 是 AutoConfigurationImportSelector 的内部类，自动配置的条目
+  // 在上面我们将看到的 AutoConfigurationGroup#process(...) 方法中，被进行赋值
+  protected static class AutoConfigurationEntry {
+  
+    // 配置类的全类名的数组
+     private final List<String> configurations;
+  
+    // 排除的配置类的全类名的数组 
+     private final Set<String> exclusions;
+  
+  }
+  ```
+
+- AutoConfigurationMetadata
+
+  例如CouchbaseReactiveRepositoriesAutoConfiguration配置类。如果它生效，需要 classpath 下有 Bucket、ReactiveCouchbaseRepository、Flux 三个类，所以红线那个条目，对应的就是 CouchbaseReactiveRepositoriesAutoConfiguration 类上的 `@ConditionalOnClass({ Bucket.class, ReactiveCouchbaseRepository.class, Flux.class })` 注解部分
+
+  ![](https://minio.pigx.vip/oss/2022/08/nWjPlN.png)
+
+
 
 ##### <1.1>getAutoConfigurationEntry
 
